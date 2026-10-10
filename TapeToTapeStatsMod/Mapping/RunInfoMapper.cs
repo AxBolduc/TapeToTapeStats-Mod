@@ -6,7 +6,6 @@ using Il2CppState;
 using Il2CppTape2Tape.Hockey;
 using MelonLoader;
 using TapeToTapeStatsMod.Domain.DTOs;
-using GameRunEndHandler = Il2CppTape2Tape.Hockey.UI.RunEndHandler;
 
 namespace TapeToTapeStatsMod.Mapping;
 
@@ -16,9 +15,8 @@ namespace TapeToTapeStatsMod.Mapping;
 /// </summary>
 public static class RunInfoMapper
 {
-    public static RunInfoDto FromRunEndHandler(GameRunEndHandler handler)
+    public static RunInfoDto FromCampaignState(CampaignState campaignState, bool isVictory)
     {
-        var campaignState = handler.m_CampaignState;
         var runData = campaignState.runData;
         var runStats = campaignState.runStatsState;
 
@@ -27,7 +25,7 @@ public static class RunInfoMapper
             DifficultyLevel: runData.difficultyLevel,
             CurrentAct: runData._currentAct,
             CurrentFloor: runData.currentFloor,
-            IsVictory: handler.m_IsVictory,
+            IsVictory: isVictory,
             PlayerTeamData: ToTeamDto(runData.teamData),
             MatchScores: runStats.runMatchScores.ToArray().Select(ToMatchScoreDto).ToList())
         {
