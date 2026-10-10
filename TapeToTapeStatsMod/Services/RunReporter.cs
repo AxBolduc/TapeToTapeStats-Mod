@@ -9,8 +9,13 @@ public static class RunReporter
 {
     private static TapeToTapeStatsClient? _client;
 
+    /// <summary>
+    /// (Re)creates the client from the current preferences. Safe to call again after they change.
+    /// </summary>
     public static void Initialize()
     {
+        _client = null;
+
         if (PreferenceService.ApiKey.Length == 0)
         {
             Melon<Core>.Logger.Warning(

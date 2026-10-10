@@ -29,4 +29,26 @@ public static class PreferenceService
     public static string ApiKey => _apiKey?.Value.Trim() ?? "";
 
     public static string ApiBaseUrl => _apiBaseUrl?.Value.Trim().TrimEnd('/') ?? DefaultApiBaseUrl;
+
+    public static void SetApiKey(string apiKey)
+    {
+        if (_apiKey == null)
+        {
+            return;
+        }
+
+        _apiKey.Value = apiKey.Trim();
+        MelonPreferences.Save();
+    }
+
+    public static void SetApiBaseUrl(string apiBaseUrl)
+    {
+        if (_apiBaseUrl == null)
+        {
+            return;
+        }
+
+        _apiBaseUrl.Value = apiBaseUrl.Trim();
+        MelonPreferences.Save();
+    }
 }

@@ -55,7 +55,9 @@ apiBaseUrl = "https://api.tapetotape.axbolduc.com"
 - `apiKey`: an API key from your Tape to Tape Stats account. Runs are not reported while it is empty.
 - `apiBaseUrl`: use `https://api.test.tapetotape.axbolduc.com` for preview or `http://localhost:8787` for `pnpm dev`.
 
-Restart the game after changing either value.
+Both can also be set in-game under Settings, on the System tab or the Stats+ tab: "Stats API key" pastes the
+key from the clipboard and "Stats server" cycles Production / Preview / Local (or a custom URL from the cfg).
+In-game changes save to the cfg and apply immediately; edits to the cfg file itself need a game restart.
 
 ## Debug
 
@@ -65,7 +67,8 @@ Launch the game with `--melonloader.debug` to log each run's JSON payload before
 ## Layout
 
 - `Core.cs`: MelonLoader entry point.
-- `Patches/`: Harmony patches. `RunEndHandlerPatch` captures the run when the game ends it.
+- `Patches/`: Harmony patches. `RunEndHandlerPatch` captures the run when the game ends it; `SettingsMenuSpikePatch`
+  injects the in-game settings rows and Stats+ tab.
 - `Mapping/`: converts Il2Cpp game objects into DTOs. Read game state only on the main thread.
 - `Domain/DTOs/`: wire format. Property names must match `runDtoSchema` in `packages/contracts/src/runIngest.ts`.
 - `Clients/`, `Services/`: HTTP client, preferences, and background run reporting.
