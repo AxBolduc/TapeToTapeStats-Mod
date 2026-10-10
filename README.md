@@ -52,7 +52,8 @@ apiKey = ""
 apiBaseUrl = "https://api.tapetotape.axbolduc.com"
 ```
 
-- `apiKey`: an API key from your Tape to Tape Stats account. Runs are not reported while it is empty.
+- `apiKey`: an API key from your Tape to Tape Stats account. While it is empty, finished runs wait in the outbox
+  and are sent once a key is set.
 - `apiBaseUrl`: use `https://api.test.tapetotape.axbolduc.com` for preview or `http://localhost:8787` for `pnpm dev`.
 
 Both can also be set in-game under Settings, on the System tab or the Stats+ tab: "Stats API key" pastes the
