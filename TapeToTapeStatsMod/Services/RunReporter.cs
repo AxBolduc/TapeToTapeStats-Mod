@@ -7,12 +7,24 @@ using TapeToTapeStatsMod.Domain.DTOs;
 namespace TapeToTapeStatsMod.Services;
 
 /// <summary>
-/// Sends finished runs to the API. Every run is written to <c>UserData/TapeToTapeStats/outbox</c> first and
-/// removed once the API accepts it, so runs finished offline or while the API is down are sent on a later launch.
+/// Sends runs to the API: snapshots while a run is played, then the finished run. Every payload is written to
+/// <c>UserData/TapeToTapeStats/outbox/&lt;runId&gt;.json</c> first (replacing the run's previous one) and removed once
+/// the API accepts it, so runs played offline or while the API is down are sent on a later update or launch.
 /// </summary>
+/// <remarks>
+/// Sends go through one queue, so a run's payloads reach the API in order. Each send reads the run's latest payload
+/// from the outbox rather than the one it was queued with, so a backlog of snapshots collapses into a single request.
+/// </remarks>
 public static class RunReporter
 {
     private static readonly object OutboxLock = new();
+
+    private static readonly object QueueLock = new();
+
+    /// <summary>Runs reported as finished this session; later snapshots must not replace their final payload.</summary>
+    private static readonly HashSet<string> FinishedRunIds = new();
+
+    private static Task _sendQueue = Task.CompletedTask;
 
     private static TapeToTapeStatsClient? _client;
 
@@ -38,31 +50,44 @@ public static class RunReporter
         RetryOutbox();
     }
 
-    /// <summary>
-    /// Sends the run in the background so the end-of-run flow is never blocked.
-    /// </summary>
-    public static void Report(RunInfoDto runInfo)
+    /// <summary>Sends the finished run in the background so the end-of-run flow is never blocked.</summary>
+    public static void ReportFinished(RunInfoDto runInfo)
     {
-        var json = JsonConvert.SerializeObject(runInfo, TapeToTapeStatsClient.SerializerSettings);
+        FinishedRunIds.Add(runInfo.RunId);
+        Save(runInfo with { IsCompleted = true });
+    }
 
-        MelonDebug.Msg(json);
-        WriteOutbox(runInfo.RunId, json);
-
-        var client = _client;
-
-        if (client == null)
+    /// <summary>Sends a snapshot of a run that is still being played. Ignored once the run has finished.</summary>
+    public static void ReportProgress(RunInfoDto runInfo)
+    {
+        if (FinishedRunIds.Contains(runInfo.RunId))
         {
             return;
         }
 
-        Task.Run(() => Send(client, runInfo.RunId, json));
+        Save(runInfo with { IsCompleted = false });
+    }
+
+    private static void Save(RunInfoDto runInfo)
+    {
+        var json = JsonConvert.SerializeObject(runInfo, TapeToTapeStatsClient.SerializerSettings);
+
+        MelonDebug.Msg(json);
+
+        if (WriteOutbox(runInfo.RunId, json))
+        {
+            Enqueue(client => SendLatest(client, runInfo.RunId));
+        }
+        else
+        {
+            // Without an outbox copy there is nothing to read back; send this payload as-is.
+            Enqueue(client => Send(client, runInfo.RunId, json));
+        }
     }
 
     private static void RetryOutbox()
     {
-        var client = _client;
-
-        if (client == null || !Directory.Exists(OutboxDirectory))
+        if (_client == null || !Directory.Exists(OutboxDirectory))
         {
             return;
         }
@@ -76,25 +101,57 @@ public static class RunReporter
 
         Melon<Core>.Logger.Msg($"Retrying {pending.Length} unreported run(s).");
 
-        Task.Run(async () =>
+        foreach (var path in pending)
         {
-            foreach (var path in pending)
+            var runId = Path.GetFileNameWithoutExtension(path);
+
+            Enqueue(client => SendLatest(client, runId));
+        }
+    }
+
+    private static void Enqueue(Func<TapeToTapeStatsClient, Task> send)
+    {
+        var client = _client;
+
+        if (client == null)
+        {
+            return;
+        }
+
+        lock (QueueLock)
+        {
+            _sendQueue = _sendQueue
+                .ContinueWith(_ => send(client), TaskScheduler.Default)
+                .Unwrap();
+        }
+    }
+
+    /// <summary>Sends whatever the outbox holds for the run; nothing if an earlier send already delivered it.</summary>
+    private static async Task SendLatest(TapeToTapeStatsClient client, string runId)
+    {
+        string? json;
+
+        try
+        {
+            lock (OutboxLock)
             {
-                string json;
+                var path = OutboxPath(runId);
 
-                lock (OutboxLock)
-                {
-                    if (!File.Exists(path))
-                    {
-                        continue;
-                    }
-
-                    json = File.ReadAllText(path);
-                }
-
-                await Send(client, Path.GetFileNameWithoutExtension(path), json);
+                json = File.Exists(path) ? File.ReadAllText(path) : null;
             }
-        });
+        }
+        catch (Exception e)
+        {
+            Melon<Core>.Logger.Error($"Could not read run {runId} from the outbox: {e.Message}");
+            return;
+        }
+
+        if (json == null)
+        {
+            return;
+        }
+
+        await Send(client, runId, json);
     }
 
     private static async Task Send(TapeToTapeStatsClient client, string runId, string json)
@@ -110,16 +167,17 @@ public static class RunReporter
         catch (RunRejectedException e)
         {
             // The API will never accept this payload as-is; keep a copy for debugging but stop retrying.
-            MoveToRejected(runId);
+            MoveToRejected(runId, json);
             Melon<Core>.Logger.Error($"Run {runId} was rejected: {e.Message}");
         }
         catch (Exception e)
         {
-            Melon<Core>.Logger.Error($"Failed to report run {runId}; will retry on next launch: {e.Message}");
+            Melon<Core>.Logger.Error(
+                $"Failed to report run {runId}; will retry with its next update or on next launch: {e.Message}");
         }
     }
 
-    private static void WriteOutbox(string runId, string json)
+    private static bool WriteOutbox(string runId, string json)
     {
         try
         {
@@ -128,14 +186,17 @@ public static class RunReporter
                 Directory.CreateDirectory(OutboxDirectory);
                 File.WriteAllText(OutboxPath(runId), json);
             }
+
+            return true;
         }
         catch (Exception e)
         {
             Melon<Core>.Logger.Warning($"Could not save run {runId} to the outbox: {e.Message}");
+            return false;
         }
     }
 
-    /// <summary>Only deletes the file if it still holds what was sent; the run may have ended again meanwhile.</summary>
+    /// <summary>Only deletes the file if it still holds what was sent; a newer snapshot may have replaced it meanwhile.</summary>
     private static void DeleteOutbox(string runId, string sentJson)
     {
         lock (OutboxLock)
@@ -149,13 +210,14 @@ public static class RunReporter
         }
     }
 
-    private static void MoveToRejected(string runId)
+    /// <summary>Like <see cref="DeleteOutbox"/>, leaves a newer snapshot in place to be sent on its own.</summary>
+    private static void MoveToRejected(string runId, string rejectedJson)
     {
         lock (OutboxLock)
         {
             var path = OutboxPath(runId);
 
-            if (!File.Exists(path))
+            if (!File.Exists(path) || File.ReadAllText(path) != rejectedJson)
             {
                 return;
             }
