@@ -1,57 +1,40 @@
-﻿using System.Net.Http.Headers;
+using System.Net.Http.Headers;
 using System.Text;
-using System.Text.Json; // Use Newtonsoft.Json if System.Text.Json is still throwing errors
-using TapeToTapeMods.Domain.DTOs;
-using TapeToTapeMods.Services;
+using Newtonsoft.Json;
+using TapeToTapeStatsMod.Domain.DTOs;
 
-namespace TapeToTapeMods.Clients
+namespace TapeToTapeStatsMod.Clients;
+
+public sealed class TapeToTapeStatsClient
 {
-    public class TapeToTapeStatsClient : ITapeToTapeStatsClient
+    private const string IngestRunPath = "api/v1/ingest/runs";
+
+    private readonly HttpClient _httpClient;
+
+    public TapeToTapeStatsClient(string baseUrl, string apiKey)
     {
-        private static readonly HttpClient Client = new HttpClient();
-        private static TapeToTapeStatsClient _instance;
-        private const string BaseUrl = "https://api.test.tapetotape.axbolduc.com";
-
-
-        public static TapeToTapeStatsClient GetInstance()
+        _httpClient = new HttpClient
         {
+            BaseAddress = new Uri(baseUrl + "/"),
+            Timeout = TimeSpan.FromSeconds(30),
+        };
+        _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
+        _httpClient.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+    }
 
-            var apiKey = PreferenceService.GetApiKey();
-            return _instance ??= new TapeToTapeStatsClient(apiKey);
+    public async Task<RunIngestResponseDto> ReportRun(RunInfoDto runInfo)
+    {
+        var json = JsonConvert.SerializeObject(runInfo);
+        using var content = new StringContent(json, Encoding.UTF8, "application/json");
+        using var response = await _httpClient.PostAsync(IngestRunPath, content);
+        var responseBody = await response.Content.ReadAsStringAsync();
+
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new HttpRequestException($"{(int)response.StatusCode} {response.ReasonPhrase}: {responseBody}");
         }
 
-        private TapeToTapeStatsClient(String apiKey)
-        {
-            // Configure base headers once
-            Client.BaseAddress = new Uri(BaseUrl);
-            Client.DefaultRequestHeaders.Accept.Clear();
-            Client.DefaultRequestHeaders.Accept.Add(
-                new MediaTypeWithQualityHeaderValue("application/json")
-            );
-            
-            // If you need custom headers (API Key), set them here
-            Client.DefaultRequestHeaders.Add("X-API-Key", apiKey);
-        }
-
-        public async Task<RunReportResultDto> ReportRun(RunInfoDto runInfo)
-        {
-            var json = JsonSerializer.Serialize(runInfo);
-            var content = new StringContent(json, Encoding.UTF8, "application/json");
-
-            var response = await Client.PostAsync("/v1/runs", content);
-            response.EnsureSuccessStatusCode();
-
-            var responseBody = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<RunReportResultDto>(responseBody);
-        }
-
-        public async Task<List<RunInfoDto>> GetAllRuns()
-        {
-            var response = await Client.GetAsync("/v1/runs");
-            response.EnsureSuccessStatusCode();
-
-            var responseBody = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<List<RunInfoDto>>(responseBody);
-        }
+        return JsonConvert.DeserializeObject<RunIngestResponseDto>(responseBody)
+            ?? throw new JsonException("Empty response body.");
     }
 }

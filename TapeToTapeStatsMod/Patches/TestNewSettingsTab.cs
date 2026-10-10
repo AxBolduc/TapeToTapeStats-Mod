@@ -1,16 +1,13 @@
-﻿using Il2Cpp;
-using Il2CppBehaviorDesigner.Runtime.Tasks.Unity.UnityGameObject;
+using Il2Cpp;
 using Il2CppBishopGames;
 using Il2CppBishopGames.UI;
-using Il2CppInterop.Runtime.InteropTypes.Arrays;
-using Il2CppPixelCrushers;
 using Il2CppTape2Tape.Customization.UI;
 using Il2CppTMPro;
 using MelonLoader;
 using UnityEngine;
 using Object = UnityEngine.Object;
 
-namespace TapeToTapeMods.Patches;
+namespace TapeToTapeStatsMod.Patches;
 
 [HarmonyLib.HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.BehaviourAwake))]
 public class TestNewSettingsTab

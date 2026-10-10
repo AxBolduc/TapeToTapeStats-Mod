@@ -1,6 +1,6 @@
-﻿using Il2Cpp;
+using Il2Cpp;
 
-namespace TapeToTapeMods.Patches;
+namespace TapeToTapeStatsMod.Patches;
 
 [HarmonyLib.HarmonyPatch(typeof(GoalReplay), nameof(GoalReplay.StartReplaySequence))]
 public class GoalReplayPatch

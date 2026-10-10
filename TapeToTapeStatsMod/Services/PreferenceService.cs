@@ -1,28 +1,32 @@
-﻿using MelonLoader;
+using MelonLoader;
 
-namespace TapeToTapeMods.Services;
+namespace TapeToTapeStatsMod.Services;
 
-public class PreferenceService
+/// <summary>
+/// Settings stored in <c>UserData/MelonPreferences.cfg</c> under <c>[TapeToTapeStats]</c>.
+/// </summary>
+public static class PreferenceService
 {
-    private static MelonPreferences_Category _category;
-    
+    private const string DefaultApiBaseUrl = "https://api.tapetotape.axbolduc.com";
+
+    private static MelonPreferences_Entry<string>? _apiKey;
+    private static MelonPreferences_Entry<string>? _apiBaseUrl;
+
     public static void Initialize()
     {
-        if (_category != null)
+        if (_apiKey != null)
         {
-            Melon<Core>.Logger.Warning("Preference Service Already Initialized");
+            return;
         }
-        
-        _category = MelonPreferences.CreateCategory("TapeToTapeStats");
 
-        _category.CreateEntry("apiKey", "REPLACE");
-        _category.SaveToFile();
+        var category = MelonPreferences.CreateCategory("TapeToTapeStats");
+
+        _apiKey = category.CreateEntry("apiKey", "", description: "API key from your Tape to Tape Stats account.");
+        _apiBaseUrl = category.CreateEntry("apiBaseUrl", DefaultApiBaseUrl, description: "Base URL of the Tape to Tape Stats API.");
+        category.SaveToFile(false);
     }
 
-    public static string GetApiKey()
-    {
-        var entry =  _category.GetEntry<string>("apiKey");
-        
-        return entry.Value;
-    }
+    public static string ApiKey => _apiKey?.Value.Trim() ?? "";
+
+    public static string ApiBaseUrl => _apiBaseUrl?.Value.Trim().TrimEnd('/') ?? DefaultApiBaseUrl;
 }
