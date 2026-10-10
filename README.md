@@ -106,7 +106,8 @@ is recorded. Logs are in `<GamePath>/MelonLoader/Latest.log`.
 ## Layout
 
 - `Core.cs`: MelonLoader entry point. `Core.ModVersion` is sent with every run.
-- `Patches/`: Harmony patches. `RunEndHandlerPatch` captures the run when the game ends it; `AnalyticsPatches` and
+- `Patches/`: Harmony patches. `RunEndPatches` captures the run when the game ends it (`CampaignEndStep` for runs that end
+  in a match, `RunEndHandler` for runs that end on the map); `AnalyticsPatches` and
   `DecisionPatches` record the decision timeline; `SettingsMenuSpikePatch` injects the in-game settings rows and
   Stats+ tab.
 - `Tracking/`: the per-run event log and the `RunTracker` the patches record through. Tracking failures are logged
