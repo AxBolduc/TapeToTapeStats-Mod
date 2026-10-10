@@ -2,6 +2,7 @@ using HarmonyLib;
 using MelonLoader;
 using TapeToTapeStatsMod.Mapping;
 using TapeToTapeStatsMod.Services;
+using TapeToTapeStatsMod.Tracking;
 using GameRunEndHandler = Il2CppTape2Tape.Hockey.UI.RunEndHandler;
 
 namespace TapeToTapeStatsMod.Patches;
@@ -14,11 +15,28 @@ public static class RunEndHandlerPatch
     {
         try
         {
-            RunReporter.Report(RunInfoMapper.FromRunEndHandler(__instance));
+            RunTracker.Observe(__instance.m_CampaignState);
+
+            var runInfo = RunInfoMapper.FromRunEndHandler(__instance);
+
+            RunReporter.Report(runInfo with { Events = ReadEvents(runInfo.RunId) });
         }
         catch (Exception e)
         {
             Melon<Core>.Logger.Error($"Failed to capture run data: {e}");
+        }
+    }
+
+    private static List<Domain.DTOs.RunEventDto>? ReadEvents(string runId)
+    {
+        try
+        {
+            return RunEventLog.ReadAll(runId);
+        }
+        catch (Exception e)
+        {
+            Melon<Core>.Logger.Warning($"Could not read the event log for run {runId}: {e.Message}");
+            return null;
         }
     }
 }

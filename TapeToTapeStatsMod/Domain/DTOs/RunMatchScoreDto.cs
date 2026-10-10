@@ -6,4 +6,16 @@ public record RunMatchScoreDto(
     bool IsShootout,
     bool IsBoss,
     int NumAct,
-    string OpponentId);
+    string OpponentId)
+{
+    public bool? IsWin { get; init; }
+
+    /// <summary>Map node the match was played on.</summary>
+    public int? MapX { get; init; }
+
+    public int? MapY { get; init; }
+
+    public List<SkaterStatsDto>? SkaterStats { get; init; }
+
+    public GoalieStatsDto? GoalieStats { get; init; }
+}
