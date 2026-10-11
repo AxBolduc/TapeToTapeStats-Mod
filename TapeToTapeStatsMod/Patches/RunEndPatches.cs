@@ -66,19 +66,7 @@ public static class RunEndPatches
         }
 
         _lastCapturedRunId = runInfo.RunId;
-        RunReporter.Report(runInfo with { Events = ReadEvents(runInfo.RunId) });
-    }
-
-    private static List<Domain.DTOs.RunEventDto>? ReadEvents(string runId)
-    {
-        try
-        {
-            return RunEventLog.ReadAll(runId);
-        }
-        catch (Exception e)
-        {
-            Melon<Core>.Logger.Warning($"Could not read the event log for run {runId}: {e.Message}");
-            return null;
-        }
+        RunSnapshotScheduler.Cancel(runInfo.RunId);
+        RunReporter.ReportFinished(runInfo with { Events = RunEventLog.TryReadAll(runInfo.RunId) });
     }
 }

@@ -17,6 +17,9 @@ public record RunInfoDto(
     RunTeamDataDto PlayerTeamData,
     List<RunMatchScoreDto> MatchScores)
 {
+    /// <summary>False for the snapshots sent while the run is still being played.</summary>
+    public bool? IsCompleted { get; init; }
+
     public string? ModVersion { get; init; }
 
     public string? SquadId { get; init; }

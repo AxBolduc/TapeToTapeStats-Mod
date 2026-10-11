@@ -87,6 +87,7 @@ public static class RunTracker
             }
 
             RunEventLog.Append(runId, type, act, floor, buildData());
+            RunSnapshotScheduler.MarkChanged(runId);
         }
         catch (Exception e)
         {

@@ -10,7 +10,7 @@ namespace TapeToTapeStatsMod;
 public class Core : MelonMod
 {
     /// <summary>Sent with every run so the API can tell which payload version a mod build produces.</summary>
-    public const string ModVersion = "1.1.0";
+    public const string ModVersion = "1.2.0";
 
     public override void OnInitializeMelon()
     {
@@ -27,5 +27,10 @@ public class Core : MelonMod
         }
 
         LoggerInstance.Msg("Initialized.");
+    }
+
+    public override void OnUpdate()
+    {
+        RunSnapshotScheduler.Tick();
     }
 }

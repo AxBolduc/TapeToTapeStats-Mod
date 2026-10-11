@@ -1,6 +1,6 @@
 # TapeToTapeStatsMod
 
-MelonLoader mod for Tape to Tape that reports finished runs to the Tape to Tape Stats API
+MelonLoader mod for Tape to Tape that reports runs, as they are played, to the Tape to Tape Stats API
 (`POST /api/v1/ingest/runs`). Not part of the pnpm/turbo graph.
 
 ## Prerequisites
@@ -52,7 +52,7 @@ apiKey = ""
 apiBaseUrl = "https://api.tapetotape.axbolduc.com"
 ```
 
-- `apiKey`: an API key from your Tape to Tape Stats account. While it is empty, finished runs wait in the outbox
+- `apiKey`: an API key from your Tape to Tape Stats account. While it is empty, runs wait in the outbox
   and are sent once a key is set.
 - `apiBaseUrl`: use `https://api.test.tapetotape.axbolduc.com` for preview or `http://localhost:8787` for `pnpm dev`.
 
@@ -62,7 +62,14 @@ In-game changes save to the cfg and apply immediately; edits to the cfg file its
 
 ## What gets reported
 
-When a run ends, the mod sends one payload with:
+The mod reports a run while it is played, not just when it ends. Each time an event below is recorded (picking a
+node, finishing a match, choosing a reward or an event card, ...), it waits until nothing has happened for two
+seconds, then sends the whole run as it stands with `IsCompleted: false`. The site shows these runs as **LIVE**.
+When the run ends, the final payload is sent with `IsCompleted: true` and the result. Each payload replaces the
+previous one for that run. The API won't let a late snapshot reopen a finished run, and win rates count finished
+runs only.
+
+Every payload has:
 
 - **Run snapshot**: squad, difficulty, game rule (timer or max goals), run time, conceded or not, the full
   roster (lineup, bench, goalie, and departed skaters) with stats, talents, abilities, and bench powers, plus
@@ -94,9 +101,11 @@ one hook, the other still records the decision.
 Events are appended as they happen to `UserData/TapeToTapeStats/events/<runId>.jsonl`, so a run survives quitting
 and resuming. Logs are kept for 30 days after their last event.
 
-Each finished run is saved to `UserData/TapeToTapeStats/outbox/<runId>.json` before it is sent, and deleted once the
-API accepts it. Anything left in the outbox (offline, API down, no API key yet) is retried on the next launch.
-Payloads the API rejects as invalid (HTTP 400) move to `outbox/rejected/` and aren't retried.
+Each payload is saved to `UserData/TapeToTapeStats/outbox/<runId>.json` before it is sent (replacing that run's
+previous one), and deleted once the API accepts it. Sends go through a single queue, so a run's payloads arrive in
+order, and each send reads the run's latest payload, so a backlog (offline, API down) collapses into one request.
+Anything still in the outbox is retried with the run's next update or on the next launch. Payloads the API rejects
+as invalid (HTTP 400) move to `outbox/rejected/` and aren't retried.
 
 ## Debug
 
@@ -110,7 +119,8 @@ is recorded. Logs are in `<GamePath>/MelonLoader/Latest.log`.
   in a match, `RunEndHandler` for runs that end on the map); `AnalyticsPatches` and
   `DecisionPatches` record the decision timeline; `SettingsMenuSpikePatch` injects the in-game settings rows and
   Stats+ tab.
-- `Tracking/`: the per-run event log and the `RunTracker` the patches record through. Tracking failures are logged
+- `Tracking/`: the per-run event log, the `RunTracker` the patches record through, and the `RunSnapshotScheduler`
+  that sends a snapshot after each burst of events (ticked from `Core.OnUpdate`). Tracking failures are logged
   and never reach the game.
 - `Mapping/`: converts Il2Cpp game objects into DTOs. Read game state only on the main thread.
 - `Domain/DTOs/`: wire format. Property names must match `runDtoSchema` in `packages/contracts/src/runIngest.ts`.

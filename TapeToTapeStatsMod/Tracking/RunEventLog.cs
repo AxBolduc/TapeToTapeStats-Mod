@@ -79,6 +79,20 @@ public static class RunEventLog
         return events;
     }
 
+    /// <summary>The run's events for a report, or null (logged) if the log can't be read.</summary>
+    public static List<RunEventDto>? TryReadAll(string runId)
+    {
+        try
+        {
+            return ReadAll(runId);
+        }
+        catch (Exception e)
+        {
+            Melon<Core>.Logger.Warning($"Could not read the event log for run {runId}: {e.Message}");
+            return null;
+        }
+    }
+
     /// <summary>
     /// Deletes logs for runs that are long finished. Logs are kept after reporting because the game can
     /// end the same run more than once, and every report must carry the full timeline.
