@@ -42,6 +42,14 @@ If regeneration fails with `Error Generating Interop Assemblies!` (a `NullRefere
 and relaunch. MelonLoader doesn't clear that folder between game versions, so stale dumps break generation,
 especially after switching Steam branches ([LavaGang/MelonLoader#1192](https://github.com/LavaGang/MelonLoader/issues/1192)).
 
+## Release
+
+Merging to `main` with a new version releases the mod: bump `<Version>` in `TapeToTapeStatsMod.csproj` and
+`Core.ModVersion` together. CI builds against reference assemblies uploaded with `pnpm mod:upload-refs`, so re-run
+that after a game update before releasing. Players download from
+`https://downloads.tapetotape.axbolduc.com/mod/latest/TapeToTapeStatsMod.dll`. See
+[INFRASTRUCTURE.md](../../INFRASTRUCTURE.md#mod-releases).
+
 ## Configure
 
 On first launch the mod adds a section to `<GamePath>/UserData/MelonPreferences.cfg`:
