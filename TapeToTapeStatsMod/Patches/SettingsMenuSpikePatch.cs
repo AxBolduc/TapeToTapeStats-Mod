@@ -15,8 +15,8 @@ using Object = UnityEngine.Object;
 namespace TapeToTapeStatsMod.Patches;
 
 /// <summary>
-/// Feasibility spike: injects Tape to Tape Stats settings into the native settings menu twice, as rows at the
-/// bottom of the System tab and as a dedicated "Stats+" tab, and logs menu internals under [SettingsSpike].
+/// Feasibility spike: injects Tape to Tape Stats settings into the native settings menu as a dedicated "Stats+"
+/// tab, and logs menu internals under [SettingsSpike].
 /// </summary>
 [HarmonyPatch(typeof(SettingsMenu), nameof(SettingsMenu.BehaviourAwake))]
 public static class SettingsMenuSpikePatch
@@ -66,13 +66,6 @@ public static class SettingsMenuSpikePatch
         {
             Log.Error($"{LogPrefix} Missing button row ({buttonRowTemplate != null}) or cycle row ({cycleRowTemplate != null}) template.");
             return;
-        }
-
-        var systemContainer = settingsContainer.Find("SystemMenu/Container");
-
-        if (systemContainer != null)
-        {
-            AddStatsRows(systemContainer, buttonRowTemplate.gameObject, cycleRowTemplate.gameObject, "System tab");
         }
 
         AddStatsTab(menu, tabs, settingsContainer, buttonRowTemplate.gameObject, cycleRowTemplate.gameObject);
@@ -182,9 +175,12 @@ public static class SettingsMenuSpikePatch
         var serverRow = Clone(cycleRowTemplate, container, "StatsServer");
         SetText(serverRow.transform, "Title", "Stats server");
 
-        LinkNeighbors(container, keyRow, serverRow, where);
+        var replayRow = Clone(cycleRowTemplate, container, "SkipGoalReplays");
+        SetText(replayRow.transform, "Title", "Skip goal replays");
 
-        MelonCoroutines.Start(WireRowsWhenActive(container, keyRow, serverRow, where));
+        LinkNeighbors(container, keyRow, serverRow, replayRow, where);
+
+        MelonCoroutines.Start(WireRowsWhenActive(container, keyRow, serverRow, replayRow, where));
     }
 
     /// <summary>
@@ -192,13 +188,18 @@ public static class SettingsMenuSpikePatch
     /// template's siblings, possibly on another page), so chain our rows below the container's last row instead.
     /// Down from the last row is left empty so the game's wrap-around still reaches the top.
     /// </summary>
-    private static void LinkNeighbors(Transform container, GameObject keyRow, GameObject serverRow, string where)
+    private static void LinkNeighbors(Transform container, GameObject keyRow, GameObject serverRow, GameObject replayRow, string where)
     {
         var keyButton = keyRow.transform.Find("Button").GetComponent<AbstractNavigable>();
-        var cycleList = serverRow.GetComponent<AbstractNavigable>();
+        var chain = new[]
+        {
+            keyButton,
+            serverRow.GetComponent<AbstractNavigable>(),
+            replayRow.GetComponent<AbstractNavigable>(),
+        };
         var previous = FindLastNavigableBefore(container, keyRow.transform.GetSiblingIndex());
 
-        foreach (var navigable in new[] { keyButton, cycleList })
+        foreach (var navigable in chain)
         {
             navigable.SetNeighbor(AbstractNavigable.EDirection.Up, null);
             navigable.SetNeighbor(AbstractNavigable.EDirection.Right, null);
@@ -222,8 +223,11 @@ public static class SettingsMenuSpikePatch
             }
         }
 
-        keyButton.SetNeighbor(AbstractNavigable.EDirection.Down, cycleList);
-        cycleList.SetNeighbor(AbstractNavigable.EDirection.Up, keyButton);
+        for (var i = 1; i < chain.Length; i++)
+        {
+            chain[i - 1].SetNeighbor(AbstractNavigable.EDirection.Down, chain[i]);
+            chain[i].SetNeighbor(AbstractNavigable.EDirection.Up, chain[i - 1]);
+        }
 
         Log.Msg($"{LogPrefix} {where}: linked below {(previous != null ? previous.transform.parent.name + "/" + previous.name : "nothing (set as default)")}");
     }
@@ -254,7 +258,12 @@ public static class SettingsMenuSpikePatch
     /// Game components finish setting up in Awake/Start, which only run once the page is shown, so wire
     /// events after the rows have been active for a frame.
     /// </summary>
-    private static IEnumerator WireRowsWhenActive(Transform container, GameObject keyRow, GameObject serverRow, string where)
+    private static IEnumerator WireRowsWhenActive(
+        Transform container,
+        GameObject keyRow,
+        GameObject serverRow,
+        GameObject replayRow,
+        string where)
     {
         while (keyRow != null && !keyRow.activeInHierarchy)
         {
@@ -263,7 +272,7 @@ public static class SettingsMenuSpikePatch
 
         yield return null;
 
-        if (keyRow == null || serverRow == null)
+        if (keyRow == null || serverRow == null || replayRow == null)
         {
             yield break;
         }
@@ -274,10 +283,13 @@ public static class SettingsMenuSpikePatch
             var keyLabel = keyRow.transform.Find("Button/Text (TMP)").GetComponent<TMP_Text>();
             WireApiKeyButton(keyButton, keyLabel);
 
-            var cycleList = serverRow.GetComponent<CycleList>();
-            WireServerCycleList(cycleList);
+            var serverCycleList = serverRow.GetComponent<CycleList>();
+            WireServerCycleList(serverCycleList);
 
-            RegisterNavigables(container, where, keyButton, cycleList);
+            var replayCycleList = replayRow.GetComponent<CycleList>();
+            WireSkipGoalReplaysCycleList(replayCycleList);
+
+            RegisterNavigables(container, where, keyButton, serverCycleList, replayCycleList);
             Log.Msg($"{LogPrefix} Wired rows on {where}.");
         }
         catch (Exception e)
@@ -338,6 +350,21 @@ public static class SettingsMenuSpikePatch
 
             PreferenceService.SetApiBaseUrl(urls[selected]);
             RunReporter.Initialize();
+        }));
+    }
+
+    private static void WireSkipGoalReplaysCycleList(CycleList cycleList)
+    {
+        var labels = new Il2CppSystem.Collections.Generic.List<string>();
+        labels.Add("Off");
+        labels.Add("On");
+
+        cycleList.Init(labels.Cast<Il2CppSystem.Collections.IList>());
+        cycleList.SelectIndex(PreferenceService.SkipGoalReplays ? 1 : 0, false);
+
+        cycleList.OnSelectionChanged.AddListener<Il2CppSystem.Object>(new Action<Il2CppSystem.Object>(_ =>
+        {
+            PreferenceService.SetSkipGoalReplays(cycleList.CurrentIndex == 1);
         }));
     }
 

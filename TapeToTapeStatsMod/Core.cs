@@ -10,7 +10,7 @@ namespace TapeToTapeStatsMod;
 public class Core : MelonMod
 {
     /// <summary>Sent with every run so the API can tell which payload version a mod build produces.</summary>
-    public const string ModVersion = "1.2.0";
+    public const string ModVersion = "1.3.0";
 
     public override void OnInitializeMelon()
     {
