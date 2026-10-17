@@ -1,4 +1,5 @@
 using Il2Cpp;
+using TapeToTapeStatsMod.Services;
 
 namespace TapeToTapeStatsMod.Patches;
 
@@ -7,6 +8,11 @@ public class GoalReplayPatch
 {
     static void Postfix(GoalReplay __instance)
     {
+        if (!PreferenceService.SkipGoalReplays)
+        {
+            return;
+        }
+
         __instance.SkipBeforeStarting();
     }
 }

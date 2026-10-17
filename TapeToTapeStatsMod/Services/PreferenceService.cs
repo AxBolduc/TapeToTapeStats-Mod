@@ -11,6 +11,7 @@ public static class PreferenceService
 
     private static MelonPreferences_Entry<string>? _apiKey;
     private static MelonPreferences_Entry<string>? _apiBaseUrl;
+    private static MelonPreferences_Entry<bool>? _skipGoalReplays;
 
     public static void Initialize()
     {
@@ -23,12 +24,15 @@ public static class PreferenceService
 
         _apiKey = category.CreateEntry("apiKey", "", description: "API key from your Tape to Tape Stats account.");
         _apiBaseUrl = category.CreateEntry("apiBaseUrl", DefaultApiBaseUrl, description: "Base URL of the Tape to Tape Stats API.");
+        _skipGoalReplays = category.CreateEntry("skipGoalReplays", true, description: "Skip goal replays automatically.");
         category.SaveToFile(false);
     }
 
     public static string ApiKey => _apiKey?.Value.Trim() ?? "";
 
     public static string ApiBaseUrl => _apiBaseUrl?.Value.Trim().TrimEnd('/') ?? DefaultApiBaseUrl;
+
+    public static bool SkipGoalReplays => _skipGoalReplays?.Value ?? true;
 
     public static void SetApiKey(string apiKey)
     {
@@ -49,6 +53,17 @@ public static class PreferenceService
         }
 
         _apiBaseUrl.Value = apiBaseUrl.Trim();
+        MelonPreferences.Save();
+    }
+
+    public static void SetSkipGoalReplays(bool skipGoalReplays)
+    {
+        if (_skipGoalReplays == null)
+        {
+            return;
+        }
+
+        _skipGoalReplays.Value = skipGoalReplays;
         MelonPreferences.Save();
     }
 }

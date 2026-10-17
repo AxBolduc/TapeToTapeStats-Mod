@@ -50,14 +50,17 @@ On first launch the mod adds a section to `<GamePath>/UserData/MelonPreferences.
 [TapeToTapeStats]
 apiKey = ""
 apiBaseUrl = "https://api.tapetotape.axbolduc.com"
+skipGoalReplays = true
 ```
 
 - `apiKey`: an API key from your Tape to Tape Stats account. While it is empty, runs wait in the outbox
   and are sent once a key is set.
 - `apiBaseUrl`: use `https://api.test.tapetotape.axbolduc.com` for preview or `http://localhost:8787` for `pnpm dev`.
+- `skipGoalReplays`: skip goal replays as soon as they start.
 
-Both can also be set in-game under Settings, on the System tab or the Stats+ tab: "Stats API key" pastes the
-key from the clipboard and "Stats server" cycles Production / Preview / Local (or a custom URL from the cfg).
+All three can also be set in-game on the Stats+ tab under Settings: "Stats API key" pastes
+the key from the clipboard, "Stats server" cycles Production / Preview / Local (or a custom URL from the cfg)
+and "Skip goal replays" toggles On / Off.
 In-game changes save to the cfg and apply immediately; edits to the cfg file itself need a game restart.
 
 ## What gets reported
