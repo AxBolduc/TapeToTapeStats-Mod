@@ -27,6 +27,8 @@ public sealed class TapeToTapeStatsClient
         };
         _httpClient.DefaultRequestHeaders.Accept.Add(new MediaTypeWithQualityHeaderValue("application/json"));
         _httpClient.DefaultRequestHeaders.Add("X-API-Key", apiKey);
+        // Lets the API's logs tell which mod build sent a request.
+        _httpClient.DefaultRequestHeaders.UserAgent.Add(new ProductInfoHeaderValue("TapeToTapeStatsMod", Core.ModVersion));
     }
 
     /// <summary>Posts an already-serialized <see cref="RunInfoDto"/>.</summary>
@@ -38,16 +40,24 @@ public sealed class TapeToTapeStatsClient
 
         if (response.StatusCode == HttpStatusCode.BadRequest)
         {
-            throw new RunRejectedException($"{(int)response.StatusCode} {response.ReasonPhrase}: {responseBody}");
+            throw new RunRejectedException(DescribeFailure(response, responseBody));
         }
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new HttpRequestException($"{(int)response.StatusCode} {response.ReasonPhrase}: {responseBody}");
+            throw new HttpRequestException(DescribeFailure(response, responseBody));
         }
 
         return JsonConvert.DeserializeObject<RunIngestResponseDto>(responseBody)
             ?? throw new JsonException("Empty response body.");
+    }
+
+    /// <summary>Includes Cloudflare's ray ID, which finds the request in the API's logs.</summary>
+    private static string DescribeFailure(HttpResponseMessage response, string responseBody)
+    {
+        var rayId = response.Headers.TryGetValues("CF-Ray", out var values) ? string.Join(",", values) : "none";
+
+        return $"{(int)response.StatusCode} {response.ReasonPhrase} (ray {rayId}): {responseBody}";
     }
 }
 
