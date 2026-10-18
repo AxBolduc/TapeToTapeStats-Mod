@@ -87,7 +87,9 @@ Every payload has:
   the team's relics.
 - **Every match**: score, win/loss, shootout, boss, the map node it was played on, and per-skater and goalie stats.
 - **Run totals**: per-skater goals, assists, shots, hits, injuries, and goalie stats.
-- **Decision timeline**: each event below, in order, with the act and floor it happened on.
+- **Decision timeline**: each event below, in order, with the act and floor it happened on. Only the events the API
+  hasn't stored yet are sent: each response carries `lastEventSequence`, and the next payload starts after it. The
+  API keeps every event it has, so after a restart (when the mod doesn't know yet) the whole log is sent once more.
 
 | Event                    | Hook                                                          | Data                                            |
 | ------------------------ | ------------------------------------------------------------- | ----------------------------------------------- |

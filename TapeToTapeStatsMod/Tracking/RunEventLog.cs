@@ -95,7 +95,7 @@ public static class RunEventLog
 
     /// <summary>
     /// Deletes logs for runs that are long finished. Logs are kept after reporting because the game can
-    /// end the same run more than once, and every report must carry the full timeline.
+    /// end the same run more than once, and after a restart a run's next report resends its whole timeline.
     /// </summary>
     public static void PruneOldLogs()
     {

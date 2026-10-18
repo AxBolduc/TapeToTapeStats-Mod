@@ -6,7 +6,7 @@
 		<Nullable>enable</Nullable>
 		<RootNamespace>TapeToTapeStatsMod</RootNamespace>
 		<AssemblyName>TapeToTapeStatsMod</AssemblyName>
-		<Version>1.3.0</Version>
+		<Version>1.4.0</Version>
 		<NeutralLanguage>en-US</NeutralLanguage>
 		<IsPackable>false</IsPackable>
 		<AllowUnsafeBlocks>true</AllowUnsafeBlocks>

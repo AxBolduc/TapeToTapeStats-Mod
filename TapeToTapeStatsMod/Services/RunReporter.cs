@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using MelonLoader;
 using MelonLoader.Utils;
 using Newtonsoft.Json;
@@ -14,6 +15,8 @@ namespace TapeToTapeStatsMod.Services;
 /// <remarks>
 /// Sends go through one queue, so a run's payloads reach the API in order. Each send reads the run's latest payload
 /// from the outbox rather than the one it was queued with, so a backlog of snapshots collapses into a single request.
+/// A payload only carries the events after the last one the API confirmed storing; the API ignores repeats, so
+/// after a restart (nothing confirmed yet) the run's whole log goes once more.
 /// </remarks>
 public static class RunReporter
 {
@@ -23,6 +26,9 @@ public static class RunReporter
 
     /// <summary>Runs reported as finished this session; later snapshots must not replace their final payload.</summary>
     private static readonly HashSet<string> FinishedRunIds = new();
+
+    /// <summary>Highest event sequence the API has stored, per run; updated from the send queue.</summary>
+    private static readonly ConcurrentDictionary<string, int> StoredEventSequences = new();
 
     private static Task _sendQueue = Task.CompletedTask;
 
@@ -70,7 +76,9 @@ public static class RunReporter
 
     private static void Save(RunInfoDto runInfo)
     {
-        var json = JsonConvert.SerializeObject(runInfo, TapeToTapeStatsClient.SerializerSettings);
+        var json = JsonConvert.SerializeObject(
+            runInfo with { Events = UnstoredEvents(runInfo) },
+            TapeToTapeStatsClient.SerializerSettings);
 
         MelonDebug.Msg(json);
 
@@ -83,6 +91,20 @@ public static class RunReporter
             // Without an outbox copy there is nothing to read back; send this payload as-is.
             Enqueue(client => Send(client, runInfo.RunId, json));
         }
+    }
+
+    /// <summary>
+    /// The run's events after the last one the API confirmed storing. A payload still waiting in the outbox was built
+    /// against an older confirmation, so it may overlap the next one; the API skips events it already has.
+    /// </summary>
+    private static List<RunEventDto>? UnstoredEvents(RunInfoDto runInfo)
+    {
+        if (runInfo.Events == null || !StoredEventSequences.TryGetValue(runInfo.RunId, out var storedSequence))
+        {
+            return runInfo.Events;
+        }
+
+        return runInfo.Events.Where(entry => entry.Sequence > storedSequence).ToList();
     }
 
     private static void RetryOutbox()
@@ -160,6 +182,14 @@ public static class RunReporter
         {
             var result = await client.ReportRun(json);
             var outcome = result.Duplicate ? "updated" : "reported";
+
+            if (result.LastEventSequence is { } storedSequence)
+            {
+                StoredEventSequences.AddOrUpdate(
+                    runId,
+                    storedSequence,
+                    (_, current) => Math.Max(current, storedSequence));
+            }
 
             DeleteOutbox(runId, json);
             Melon<Core>.Logger.Msg($"Run {runId} {outcome} (run {result.RunId}).");
