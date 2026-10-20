@@ -63,7 +63,7 @@ skipGoalReplays = true
 
 - `apiKey`: an API key from your Tape to Tape Stats account. While it is empty, runs wait in the outbox
   and are sent once a key is set.
-- `apiBaseUrl`: use `https://api.test.tapetotape.axbolduc.com` for preview or `http://localhost:8787` for `pnpm dev`.
+- `apiBaseUrl`: use `https://api.test.tapetotape.axbolduc.com` for preview or `http://localhost:8787` for `PORTLESS=0 pnpm dev` (plain `pnpm dev` serves the API on a portless URL instead).
 - `skipGoalReplays`: skip goal replays as soon as they start.
 
 All three can also be set in-game on the Stats+ tab under Settings: "Stats API key" pastes
