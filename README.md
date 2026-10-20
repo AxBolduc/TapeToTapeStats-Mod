@@ -1,7 +1,12 @@
 # TapeToTapeStatsMod
 
 MelonLoader mod for Tape to Tape that reports runs, as they are played, to the Tape to Tape Stats API
-(`POST /api/v1/ingest/runs`). Not part of the pnpm/turbo graph.
+(`POST /api/v1/ingest/runs`).
+
+The mod is developed in the Tape to Tape Stats monorepo, which is private, as `apps/mod` (it isn't part of the
+pnpm/turbo graph there). [AxBolduc/TapeToTapeStats-Mod](https://github.com/AxBolduc/TapeToTapeStats-Mod) is a
+read-only public mirror of that folder, with its history, so pull requests there can't be merged directly. Paths
+below are relative to this folder unless they say otherwise.
 
 ## Prerequisites
 
@@ -28,7 +33,7 @@ The project defaults to `C:\Program Files (x86)\Steam\steamapps\common\Tape to T
 ## Build
 
 ```sh
-dotnet build apps/mod/TapeToTapeStats.sln
+dotnet build TapeToTapeStats.sln
 ```
 
 Each build copies `TapeToTapeStatsMod.dll` into `<GamePath>/Mods`. Pass `-p:DeployToGame=false` to skip that,
@@ -44,11 +49,13 @@ especially after switching Steam branches ([LavaGang/MelonLoader#1192](https://g
 
 ## Release
 
-Merging to `main` with a new version releases the mod: bump `<Version>` in `TapeToTapeStatsMod.csproj` and
-`Core.ModVersion` together. CI builds against reference assemblies uploaded with `pnpm mod:upload-refs`, so re-run
-that after a game update before releasing. Players download from
-`https://downloads.tapetotape.axbolduc.com/mod/latest/TapeToTapeStatsMod.dll`. See
-[INFRASTRUCTURE.md](../../INFRASTRUCTURE.md#mod-releases).
+Players download from `https://downloads.tapetotape.axbolduc.com/mod/latest/TapeToTapeStatsMod.dll`. Each version
+is also tagged `mod-v<version>`.
+
+Releases come from the monorepo's CI: merging to `main` with a new version releases the mod. Bump `<Version>` in
+`TapeToTapeStatsMod.csproj` and `Core.ModVersion` together. CI builds against reference assemblies uploaded with
+`pnpm mod:upload-refs`, so re-run that after a game update before releasing. See `INFRASTRUCTURE.md` > Mod releases
+in the monorepo.
 
 ## Configure
 
@@ -63,7 +70,7 @@ skipGoalReplays = true
 
 - `apiKey`: an API key from your Tape to Tape Stats account. While it is empty, runs wait in the outbox
   and are sent once a key is set.
-- `apiBaseUrl`: use `https://api.test.tapetotape.axbolduc.com` for preview or `http://localhost:8787` for `PORTLESS=0 pnpm dev` (plain `pnpm dev` serves the API on a portless URL instead).
+- `apiBaseUrl`: use `https://api.test.tapetotape.axbolduc.com` for preview or `http://localhost:8787` for the monorepo's `PORTLESS=0 pnpm dev` (plain `pnpm dev` serves the API on a portless URL instead).
 - `skipGoalReplays`: skip goal replays as soon as they start.
 
 All three can also be set in-game on the Stats+ tab under Settings: "Stats API key" pastes
@@ -136,6 +143,6 @@ is recorded. Logs are in `<GamePath>/MelonLoader/Latest.log`.
   that sends a snapshot after each burst of events (ticked from `Core.OnUpdate`). Tracking failures are logged
   and never reach the game.
 - `Mapping/`: converts Il2Cpp game objects into DTOs. Read game state only on the main thread.
-- `Domain/DTOs/`: wire format. Property names must match `runDtoSchema` in `packages/contracts/src/runIngest.ts`.
+- `Domain/DTOs/`: wire format. Property names must match `runDtoSchema` in the monorepo's `packages/contracts/src/runIngest.ts`.
 - `Clients/`, `Services/`: HTTP client, preferences, and background run reporting with the outbox.
 - `Polyfills/`: works around Unity's public `NullableAttribute` clashing with the compiler (CS0656).
