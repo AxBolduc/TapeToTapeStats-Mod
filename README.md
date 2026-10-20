@@ -97,6 +97,9 @@ Every payload has:
 - **Decision timeline**: each event below, in order, with the act and floor it happened on. Only the events the API
   hasn't stored yet are sent: each response carries `lastEventSequence`, and the next payload starts after it. The
   API keeps every event it has, so after a restart (when the mod doesn't know yet) the whole log is sent once more.
+- **Versions**: the mod's own version and the game's (`Application.version`). The site marks each run valid,
+  incomplete (some events never arrived), or unsupported (a mod build before 1.1.0), and only valid runs count
+  toward community stats.
 
 | Event                    | Hook                                                          | Data                                            |
 | ------------------------ | ------------------------------------------------------------- | ----------------------------------------------- |

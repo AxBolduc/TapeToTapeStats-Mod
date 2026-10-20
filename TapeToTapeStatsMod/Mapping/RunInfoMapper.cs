@@ -30,6 +30,7 @@ public static class RunInfoMapper
             MatchScores: runStats.runMatchScores.ToArray().Select(ToMatchScoreDto).ToList())
         {
             ModVersion = Core.ModVersion,
+            GameVersion = Safe(() => UnityEngine.Application.version),
             SquadId = Safe(() => runData.squadId),
             GameRule = Safe(() => (int?)runData.gameRule),
             RunTimeSeconds = Safe(() => (float?)campaignState.GetTotalRunTime()),

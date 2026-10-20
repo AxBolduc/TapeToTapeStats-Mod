@@ -22,6 +22,9 @@ public record RunInfoDto(
 
     public string? ModVersion { get; init; }
 
+    /// <summary>The game build the run was played on (Unity's <c>Application.version</c>). Since mod 1.5.0.</summary>
+    public string? GameVersion { get; init; }
+
     public string? SquadId { get; init; }
 
     public int? GameRule { get; init; }
